@@ -1,0 +1,78 @@
+# Игнорирование файлов и папок, связанных с базами данных
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.dbmdl
+*.jfm
+
+# Игнорирование файлов сборки и бинарных файлов
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Игнорирование файлов Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.dbproj.schemaview
+*.pfx
+*.publishsettings
+*.pubxml
+*.pubxml.user
+
+# Игнорирование файлов NuGet
+packages/
+*.nupkg
+# Игнорирование файла packages.config, если используется PackageReference
+# **/packages.config
+# Раскомментируйте, если необходимо игнорировать project.json файлы
+# **/project.json
+
+# Игнорирование файлов ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# Игнорирование временных файлов
+[Tt]emp/
+[Tt]mp/
+*.tmp
+*.temp
+
+# Игнорирование файлов операционной системы
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Игнорирование файлов логов
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Игнорирование файлов среды разработки
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Игнорирование файлов зависимостей
+node_modules/
+jspm_packages/
+bower_components/
+
+# Игнорирование файлов сборки
+dist/
+build/
+out/ 

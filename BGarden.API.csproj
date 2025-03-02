@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Application">
+      <HintPath>..\BGarden.DB\Application\bin\Debug\net8.0\Application.dll</HintPath>
+    </Reference>
+    <Reference Include="Infrastructure">
+      <HintPath>..\BGarden.DB\Infrastructure\bin\Debug\net8.0\Infrastructure.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
