@@ -1,0 +1,29 @@
+- **BGarden.API**
+  - **.vs**
+  - `appsettings.Development.json` (127.0 B)
+  - `appsettings.json` (830.0 B)
+  - `BGarden.API.csproj` (1.2 KB)
+  - `BGarden.API.http` (135.0 B)
+  - `BGarden.API.sln` (1006.0 B)
+  - **bin**
+  - **Controllers**
+    - `AuthController.cs` (12.7 KB)
+    - `BiometryController.cs` (3.5 KB)
+    - `ExpositionController.cs` (2.7 KB)
+    - `FamilyController.cs` (2.6 KB)
+    - `PhenologyController.cs` (3.8 KB)
+    - `RegionController.cs` (2.5 KB)
+    - `SpecimenController.cs` (2.3 KB)
+    - `UserController.cs` (3.5 KB)
+  - **docs**
+    - `Структура_BGarden-API_от_02-03-2025.md` (471.0 B)
+    - `Структура_BGarden-API_от_03-03-2025.md` (1001.0 B)
+  - **Middleware**
+    - `BruteForceProtectionExtension.cs` (482.0 B)
+    - `BruteForceProtectionMiddleware.cs` (5.0 KB)
+    - `SecurityHeadersExtension.cs` (482.0 B)
+    - `SecurityHeadersMiddleware.cs` (2.3 KB)
+  - **obj**
+  - `Program.cs` (5.3 KB)
+  - **Properties**
+    - `launchSettings.json` (1.1 KB)
