@@ -23,6 +23,35 @@ namespace BGarden.API.Controllers
         }
 
         /// <summary>
+        /// Регистрация нового пользователя
+        /// </summary>
+        [HttpPost("register")]
+        public async Task<ActionResult<TokenDto>> Register([FromBody] RegisterDto registerDto)
+        {
+            try
+            {
+                // Получаем IP-адрес клиента
+                var ipAddress = GetIpAddress();
+                
+                // Обогащаем DTO данными из запроса
+                registerDto.IpAddress = ipAddress;
+                registerDto.UserAgent = Request.Headers["User-Agent"].ToString();
+                
+                var result = await _authUseCase.RegisterAsync(registerDto);
+                
+                // Установка refresh token в куки
+                SetRefreshTokenCookie(result.RefreshToken);
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при регистрации пользователя {Username}", registerDto.Username);
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Авторизация пользователя
         /// </summary>
         [HttpPost("login")]

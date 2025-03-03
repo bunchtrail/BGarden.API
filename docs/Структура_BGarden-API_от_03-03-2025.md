@@ -7,7 +7,7 @@
   - `BGarden.API.sln` (1006.0 B)
   - **bin**
   - **Controllers**
-    - `AuthController.cs` (12.7 KB)
+    - `AuthController.cs` (13.9 KB)
     - `BiometryController.cs` (3.5 KB)
     - `ExpositionController.cs` (2.7 KB)
     - `FamilyController.cs` (2.6 KB)
@@ -16,8 +16,7 @@
     - `SpecimenController.cs` (2.3 KB)
     - `UserController.cs` (3.5 KB)
   - **docs**
-    - `Структура_BGarden-API_от_02-03-2025.md` (471.0 B)
-    - `Структура_BGarden-API_от_03-03-2025.md` (1001.0 B)
+    - `Структура_BGarden-API_от_03-03-2025.md` (932.0 B)
   - **Middleware**
     - `BruteForceProtectionExtension.cs` (482.0 B)
     - `BruteForceProtectionMiddleware.cs` (5.0 KB)
