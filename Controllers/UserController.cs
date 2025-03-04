@@ -31,45 +31,64 @@ namespace BGarden.API.Controllers
         [HttpGet("me")]
         public async Task<ActionResult<UserDto>> GetCurrentUser()
         {
-            var username = User.Identity?.Name;
-            Console.WriteLine($"User.Identity.Name: {username}");
-            Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
-
-            // Проверим все клеймы в токене
-            if (User.Claims.Any())
+            try
             {
-                foreach (var claim in User.Claims)
+                var username = User.Identity?.Name;
+                Console.WriteLine($"User.Identity.Name: {username}");
+                Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
+                Console.WriteLine($"AuthenticationType: {User.Identity?.AuthenticationType}");
+
+                // Проверим все клеймы в токене
+                if (User.Claims.Any())
                 {
-                    Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+                    Console.WriteLine("Доступные claims в токене:");
+                    foreach (var claim in User.Claims)
+                    {
+                        Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+                    }
                 }
-            }
-            else
-            {
-                Console.WriteLine("Нет доступных claims в токене");
-            }
+                else
+                {
+                    Console.WriteLine("Нет доступных claims в токене");
+                }
 
-            // Пробуем получить имя из дополнительных источников
-            if (string.IsNullOrEmpty(username))
-            {
-                // Попробуем получить из claim 'name'
-                username = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
-                Console.WriteLine($"Name из claim: {username}");
-            }
+                // Пробуем получить имя из дополнительных источников
+                if (string.IsNullOrEmpty(username))
+                {
+                    // Попробуем получить из claim 'name'
+                    username = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+                    Console.WriteLine($"Name из claim: {username}");
 
-            if (string.IsNullOrEmpty(username))
-            {
-                return Unauthorized();
-            }
+                    // Если всё еще пусто, попробуем найти по sub
+                    if (string.IsNullOrEmpty(username))
+                    {
+                        username = User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+                        Console.WriteLine($"Username из sub claim: {username}");
+                    }
+                }
 
-            var user = await _userService.GetUserByUsernameAsync(username);
-            if (user == null)
-            {
-                return NotFound(new { message = "Пользователь не найден" });
-            }
+                if (string.IsNullOrEmpty(username))
+                {
+                    Console.WriteLine("Не удалось извлечь имя пользователя из токена");
+                    return Unauthorized();
+                }
 
-            return Ok(user);
+                var user = await _userService.GetUserByUsernameAsync(username);
+                if (user == null)
+                {
+                    Console.WriteLine($"Пользователь {username} не найден в базе данных");
+                    return NotFound(new { message = "Пользователь не найден" });
+                }
+
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка в GetCurrentUser: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+                return StatusCode(500, new { message = "Внутренняя ошибка сервера" });
+            }
         }
-
 
         // GET: api/User/5
         [HttpGet("{id}")]

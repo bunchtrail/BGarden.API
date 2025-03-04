@@ -98,25 +98,22 @@ namespace BGarden.API.Controllers
                 var ipAddress = GetIpAddress();
                 
                 if (string.IsNullOrEmpty(refreshToken))
-                    return BadRequest(new { message = "Токен обновления отсутствует" });
-                
-                var refreshTokenDto = new RefreshTokenDto
                 {
-                    Token = refreshToken,
-                    IpAddress = ipAddress
-                };
+                    return BadRequest(new { message = "Refresh token отсутствует" });
+                }
                 
-                var result = await _authUseCase.RefreshTokenAsync(refreshTokenDto);
+                // Теперь передаем token и ipAddress напрямую вместо DTO
+                var result = await _authUseCase.RefreshTokenAsync(refreshToken, ipAddress);
                 
-                // Установка нового refresh token в куки
+                // Устанавливаем новый refresh token в куки
                 SetRefreshTokenCookie(result.RefreshToken);
                 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при обновлении токена");
-                return BadRequest(new { message = "Ошибка обновления токена" });
+                _logger.LogError(ex, "Ошибка при обновлении токена: {Message}", ex.Message);
+                return BadRequest(new { message = "Невозможно обновить токен доступа" });
             }
         }
 

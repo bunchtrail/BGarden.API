@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.6.0" />
     <PackageReference Include="Npgsql" Version="9.0.3" />
@@ -24,6 +24,12 @@
     <Reference Include="Infrastructure">
       <HintPath>..\BGarden.DB\Infrastructure\bin\Debug\net8.0\Infrastructure.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BGarden.DB\Domain\Domain.csproj" />
+    <ProjectReference Include="..\BGarden.DB\Application\Application.csproj" />
+    <ProjectReference Include="..\BGarden.DB\Infrastructure\Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

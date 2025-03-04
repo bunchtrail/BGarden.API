@@ -1,0 +1,16 @@
+### Тест JWT аутентификации
+
+### Логин
+POST http://localhost:7254/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "Admin123!"
+}
+
+### Проверка защищенного ресурса с токеном
+@authToken = {{login.response.body.$.accessToken}}
+
+GET http://localhost:7254/api/user/profile
+Authorization: Bearer {{authToken}} 
