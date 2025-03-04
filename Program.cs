@@ -10,6 +10,7 @@ using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
 using BGarden.API.Middleware;
+using System.Security.Claims;
 
 namespace API
 {
@@ -44,6 +45,20 @@ namespace API
             {
                 options.RequireHttpsMetadata = false; // В продакшн установить true
                 options.SaveToken = true;
+                // Добавляем дополнительную отладочную информацию
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        Console.WriteLine("JWT токен успешно валидирован");
+                        return Task.CompletedTask;
+                    },
+                    OnAuthenticationFailed = context =>
+                    {
+                        Console.WriteLine($"Ошибка аутентификации: {context.Exception.Message}");
+                        return Task.CompletedTask;
+                    }
+                };
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
@@ -52,6 +67,8 @@ namespace API
                     ValidateAudience = true,
                     ValidIssuer = jwtSettings["Issuer"],
                     ValidAudience = jwtSettings["Audience"],
+                    NameClaimType = ClaimTypes.Name, // Указываем, какой claim использовать для Name
+                    RoleClaimType = ClaimTypes.Role, // Указываем, какой claim использовать для Role
                     ClockSkew = TimeSpan.Zero
                 };
             });
@@ -97,10 +114,17 @@ namespace API
                 options.AddPolicy("AllowSpecificOrigins",
                     builder =>
                     {
-                        builder.WithOrigins("http://localhost:5173") // Замените на реальный URL вашего фронтенда
-                               .AllowAnyMethod()
-                               .AllowAnyHeader()
-                               .AllowCredentials(); // Важно для передачи куки
+                        builder.WithOrigins(
+                                "http://localhost:5173",  // Существующий URL
+                                "http://localhost:3000",  // URL вашего фронтенда
+                                "http://localhost:3001",  // Дополнительный URL для разработки
+                                "http://127.0.0.1:3000",  // localhost и 127.0.0.1 обрабатываются как разные домены
+                                "http://127.0.0.1:3001"
+                            )
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials() // Важно для передачи куки
+                            .SetIsOriginAllowed(origin => true); // Разрешаем любые домены в режиме разработки
                     });
             });
 
@@ -113,7 +137,8 @@ namespace API
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "BGarden API v1"));
             }
 
-            app.UseHttpsRedirection();
+            // Убираем перенаправление на HTTPS для разработки
+            // app.UseHttpsRedirection();
 
             // Подключаем middleware безопасности
             app.UseSecurityHeaders();

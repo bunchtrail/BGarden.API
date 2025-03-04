@@ -1,8 +1,10 @@
 using BGarden.Application.DTO;
 using BGarden.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace BGarden.API.Controllers
 {
@@ -24,6 +26,50 @@ namespace BGarden.API.Controllers
             var users = await _userService.GetAllUsersAsync();
             return Ok(users);
         }
+
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<ActionResult<UserDto>> GetCurrentUser()
+        {
+            var username = User.Identity?.Name;
+            Console.WriteLine($"User.Identity.Name: {username}");
+            Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
+
+            // Проверим все клеймы в токене
+            if (User.Claims.Any())
+            {
+                foreach (var claim in User.Claims)
+                {
+                    Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Нет доступных claims в токене");
+            }
+
+            // Пробуем получить имя из дополнительных источников
+            if (string.IsNullOrEmpty(username))
+            {
+                // Попробуем получить из claim 'name'
+                username = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+                Console.WriteLine($"Name из claim: {username}");
+            }
+
+            if (string.IsNullOrEmpty(username))
+            {
+                return Unauthorized();
+            }
+
+            var user = await _userService.GetUserByUsernameAsync(username);
+            if (user == null)
+            {
+                return NotFound(new { message = "Пользователь не найден" });
+            }
+
+            return Ok(user);
+        }
+
 
         // GET: api/User/5
         [HttpGet("{id}")]
