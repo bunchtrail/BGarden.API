@@ -17,6 +17,12 @@ namespace BGarden.API.Middleware
         private readonly ILogger<JwtTokenHandlerMiddleware> _logger;
         // Регулярное выражение для проверки формата JWT
         private static readonly Regex JwtRegex = new Regex(@"^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$", RegexOptions.Compiled);
+        // Пути, которые не требуют авторизации
+        private static readonly string[] _publicPaths = new[] 
+        { 
+            "/api/auth/register", 
+            "/api/auth/login" 
+        };
 
         public JwtTokenHandlerMiddleware(
             RequestDelegate next,
@@ -30,6 +36,20 @@ namespace BGarden.API.Middleware
         {
             try
             {
+                // Получаем путь запроса в нижнем регистре для сравнения
+                var path = context.Request.Path.Value?.ToLowerInvariant();
+                
+                // Проверяем, является ли путь публичным (не требующим авторизации)
+                bool isPublicPath = _publicPaths.Any(p => path != null && path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+                
+                // Если путь публичный, пропускаем проверку заголовка Authorization
+                if (isPublicPath)
+                {
+                    _logger.LogInformation("JwtTokenHandlerMiddleware: Пропуск проверки для публичного пути: {Path}", path);
+                    await _next(context);
+                    return;
+                }
+                
                 // Получаем заголовок Authorization
                 var authHeader = context.Request.Headers["Authorization"].ToString();
                 
