@@ -1,6 +1,7 @@
 using Application.DTO;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using BGarden.Domain.Enums;
 
 namespace API.Controllers
 {
@@ -15,23 +16,18 @@ namespace API.Controllers
             _specimenService = specimenService;
         }
 
-        // GET: api/Specimen
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<SpecimenDto>>> GetAll()
+        // GET: api/Specimen/sector/{sectorType}
+        // Пример: api/Specimen/sector/0 - для дендрологии,
+        //          api/Specimen/sector/1 - для флоры,
+        //          api/Specimen/sector/2 - для цветоводства.
+        [HttpGet("sector/{sectorType}")]
+        public async Task<ActionResult<IEnumerable<SpecimenDto>>> GetBySectorType(SectorType sectorType)
         {
-            var specimens = await _specimenService.GetAllSpecimensAsync();
-            return Ok(specimens);
-        }
-
-        // GET: api/Specimen/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<SpecimenDto>> GetById(int id)
-        {
-            var specimen = await _specimenService.GetSpecimenByIdAsync(id);
-            if (specimen == null)
+            var specimens = await _specimenService.GetSpecimensBySectorTypeAsync(sectorType);
+            if (specimens == null || !specimens.Any())
                 return NotFound();
 
-            return Ok(specimen);
+            return Ok(specimens);
         }
 
         // POST: api/Specimen
@@ -42,33 +38,8 @@ namespace API.Controllers
                 return BadRequest(ModelState);
 
             var created = await _specimenService.CreateSpecimenAsync(dto);
-            // Возвращаем 201 Created + ссылку на новый ресурс
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
-        }
-
-        // PUT: api/Specimen/5
-        [HttpPut("{id}")]
-        public async Task<ActionResult<SpecimenDto>> Update(int id, [FromBody] SpecimenDto dto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var updated = await _specimenService.UpdateSpecimenAsync(id, dto);
-            if (updated == null)
-                return NotFound();
-
-            return Ok(updated);
-        }
-
-        // DELETE: api/Specimen/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var success = await _specimenService.DeleteSpecimenAsync(id);
-            if (!success)
-                return NotFound();
-
-            return NoContent();
+            // Возвращаем 201 Created с данными созданного образца
+            return CreatedAtAction(nameof(Create), new { id = created.Id }, created);
         }
     }
-} 
+}
