@@ -33,6 +33,33 @@ namespace API.Controllers
             return Ok(specimens);
         }
 
+        // GET: api/Specimen/all
+        // Получение всех образцов независимо от сектора
+        [HttpGet("all")]
+        public async Task<ActionResult<IEnumerable<SpecimenDto>>> GetAll()
+        {
+            var specimens = await _specimenService.GetAllSpecimensAsync();
+            if (specimens == null || !specimens.Any())
+                return NotFound();
+
+            return Ok(specimens);
+        }
+
+        // GET: api/Specimen/filter?name=value&familyId=1&regionId=2
+        // Получение образцов с фильтрацией по параметрам
+        [HttpGet("filter")]
+        public async Task<ActionResult<IEnumerable<SpecimenDto>>> GetFiltered(
+            [FromQuery] string? name = null, 
+            [FromQuery] int? familyId = null, 
+            [FromQuery] int? regionId = null)
+        {
+            var specimens = await _specimenService.GetFilteredSpecimensAsync(name, familyId, regionId);
+            if (specimens == null || !specimens.Any())
+                return NotFound();
+
+            return Ok(specimens);
+        }
+
         // GET: api/Specimen/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<SpecimenDto>> GetById(int id)
