@@ -15,8 +15,6 @@ using System.IdentityModel.Tokens.Jwt;
 using BGarden.API.Services;
 using BGarden.API.Interfaces;
 using BGarden.API.Adapters;
-using Application.Interfaces.Map;
-using Application.Services.Map;
 using BGarden.Application;
 
 namespace API
@@ -35,9 +33,6 @@ namespace API
 
             // Затем регистрируем application слой
             builder.Services.AddApplication();
-            
-            // Регистрируем сервис карты
-            builder.Services.AddScoped<IMapService, MapService>();
             
             // Регистрируем собственный JwtService из API.Interfaces
             builder.Services.AddScoped<BGarden.API.Interfaces.IJwtService, JwtService>();

@@ -21,10 +21,7 @@ namespace BGarden.API.Middleware
         private static readonly string[] _publicPaths = new[] 
         { 
             "/api/auth/register", 
-            "/api/auth/login",
-            "/api/map/options/default",
-            "/api/map/markers",
-            "/api/map/areas"
+            "/api/auth/login"
         };
 
         public JwtTokenHandlerMiddleware(

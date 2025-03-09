@@ -2,8 +2,6 @@ using Application.DTO;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using BGarden.Domain.Enums;
-using Application.Interfaces.Map;
-using BGarden.DB.Application.DTO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
@@ -15,12 +13,10 @@ namespace API.Controllers
     public class SpecimenController : ControllerBase
     {
         private readonly ISpecimenService _specimenService;
-        private readonly IMapService _mapService;
 
-        public SpecimenController(ISpecimenService specimenService, IMapService mapService)
+        public SpecimenController(ISpecimenService specimenService)
         {
             _specimenService = specimenService;
-            _mapService = mapService;
         }
 
         // GET: api/Specimen/sector/{sectorType}
@@ -46,18 +42,6 @@ namespace API.Controllers
                 return NotFound();
 
             return Ok(specimen);
-        }
-
-        // GET: api/Specimen/{id}/location
-        [HttpGet("{id}/location")]
-        public async Task<ActionResult<IEnumerable<MapMarkerDto>>> GetSpecimenLocation(int id)
-        {
-            var specimen = await _specimenService.GetSpecimenByIdAsync(id);
-            if (specimen == null)
-                return NotFound();
-
-            var markers = await _mapService.GetMarkersBySpecimenIdAsync(id);
-            return Ok(markers);
         }
 
         // POST: api/Specimen

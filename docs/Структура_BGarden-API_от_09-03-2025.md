@@ -1,8 +1,10 @@
 - **BGarden.API**
   - **.vs**
+  - **Adapters**
+    - `JwtServiceAdapter.cs` (986.0 B)
   - `appsettings.Development.json` (127.0 B)
-  - `appsettings.json` (830.0 B)
-  - `BGarden.API.csproj` (1.2 KB)
+  - `appsettings.json` (803.0 B)
+  - `BGarden.API.csproj` (1.5 KB)
   - `BGarden.API.http` (135.0 B)
   - `BGarden.API.sln` (1006.0 B)
   - **bin**
@@ -13,16 +15,25 @@
     - `FamilyController.cs` (2.6 KB)
     - `PhenologyController.cs` (3.8 KB)
     - `RegionController.cs` (2.5 KB)
-    - `SpecimenController.cs` (2.3 KB)
-    - `UserController.cs` (3.5 KB)
+    - `SpecimenController.cs` (2.9 KB)
+    - `UserController.cs` (6.4 KB)
   - **docs**
-    - `Структура_BGarden-API_от_03-03-2025.md` (932.0 B)
+    - `Структура_BGarden-API_от_09-03-2025.md` (1.2 KB)
+  - **DTO**
+  - **Interfaces**
+    - `IJwtService.cs` (1.1 KB)
   - **Middleware**
     - `BruteForceProtectionExtension.cs` (482.0 B)
     - `BruteForceProtectionMiddleware.cs` (5.0 KB)
+    - `JwtTokenHandlerExtension.cs` (480.0 B)
+    - `JwtTokenHandlerMiddleware.cs` (5.0 KB)
     - `SecurityHeadersExtension.cs` (482.0 B)
     - `SecurityHeadersMiddleware.cs` (2.3 KB)
   - **obj**
-  - `Program.cs` (5.3 KB)
+  - **Options**
+  - `Program.cs` (11.6 KB)
   - **Properties**
     - `launchSettings.json` (1.1 KB)
+  - **Services**
+    - `JwtService.cs` (4.8 KB)
+  - `test-jwt.http` (413.0 B)
