@@ -224,6 +224,9 @@ namespace API
             // Подключаем CORS
             app.UseCors("AllowSpecificOrigins");
 
+            // Подключаем обслуживание статических файлов
+            app.UseStaticFiles();
+
             // Важно! Аутентификация должна быть перед авторизацией
             app.UseAuthentication();
             app.UseAuthorization();
