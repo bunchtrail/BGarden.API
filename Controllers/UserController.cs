@@ -34,49 +34,41 @@ namespace BGarden.API.Controllers
             try
             {
                 var username = User.Identity?.Name;
-                Console.WriteLine($"User.Identity.Name: {username}");
-                Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
-                Console.WriteLine($"AuthenticationType: {User.Identity?.AuthenticationType}");
+                // Убираем избыточные логи
+                // Console.WriteLine($"User.Identity.Name: {username}");
+                // Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
+                // Console.WriteLine($"AuthenticationType: {User.Identity?.AuthenticationType}");
 
-                // Проверим все клеймы в токене
-                if (User.Claims.Any())
-                {
-                    Console.WriteLine("Доступные claims в токене:");
-                    foreach (var claim in User.Claims)
-                    {
-                        Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Нет доступных claims в токене");
-                }
+                // Проверим все клеймы в токене - убираем логирование всех клеймов
+                // if (User.Claims.Any())
+                // {
+                //     Console.WriteLine("Доступные claims в токене:");
+                //     foreach (var claim in User.Claims)
+                //     {
+                //         Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+                //     }
+                // }
+                // else
+                // {
+                //     Console.WriteLine("Клеймы отсутствуют в токене");
+                // }
 
-                // Пробуем получить имя из дополнительных источников
-                if (string.IsNullOrEmpty(username))
+                // Находим claim с именем
+                var nameClaim = User.Claims.FirstOrDefault(c => c.Type == "name");
+                if (nameClaim != null)
                 {
-                    // Попробуем получить из claim 'name'
-                    username = User.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
-                    Console.WriteLine($"Name из claim: {username}");
-
-                    // Если всё еще пусто, попробуем найти по sub
-                    if (string.IsNullOrEmpty(username))
-                    {
-                        username = User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
-                        Console.WriteLine($"Username из sub claim: {username}");
-                    }
+                    // Console.WriteLine($"Name из claim: {nameClaim.Value}");
+                    username = nameClaim.Value;
                 }
 
                 if (string.IsNullOrEmpty(username))
                 {
-                    Console.WriteLine("Не удалось извлечь имя пользователя из токена");
-                    return Unauthorized();
+                    return Unauthorized(new { message = "Пользователь не авторизован" });
                 }
 
                 var user = await _userService.GetUserByUsernameAsync(username);
                 if (user == null)
                 {
-                    Console.WriteLine($"Пользователь {username} не найден в базе данных");
                     return NotFound(new { message = "Пользователь не найден" });
                 }
 
@@ -84,9 +76,7 @@ namespace BGarden.API.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка в GetCurrentUser: {ex.Message}");
-                Console.WriteLine($"StackTrace: {ex.StackTrace}");
-                return StatusCode(500, new { message = "Внутренняя ошибка сервера" });
+                return BadRequest(new { message = ex.Message });
             }
         }
 

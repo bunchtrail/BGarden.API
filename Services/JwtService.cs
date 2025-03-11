@@ -72,10 +72,9 @@ namespace BGarden.API.Services
             var secToken = new JwtSecurityToken(header, payload);
             var token = tokenHandler.WriteToken(secToken);
             
-            // Отладочная информация
-            Console.WriteLine($"Сгенерирован токен через JwtService: {token}");
-            
-            // Анализируем структуру токена для отладки
+            // Убираем отладочную информацию в рабочей версии
+            /* 
+            #if DEBUG
             var parts = token.Split('.');
             if (parts.Length >= 2)
             {
@@ -84,6 +83,8 @@ namespace BGarden.API.Services
                 var headerJson = Encoding.UTF8.GetString(headerBytes);
                 Console.WriteLine($"Заголовок токена: {headerJson}");
             }
+            #endif
+            */
             
             return token;
         }

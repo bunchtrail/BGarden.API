@@ -37,6 +37,23 @@ namespace API
             // Регистрируем собственный JwtService из API.Interfaces
             builder.Services.AddScoped<BGarden.API.Interfaces.IJwtService, JwtService>();
             
+            // Добавляем настройки логирования
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+            // Устанавливаем уровень логирования для разных категорий
+            builder.Logging.AddFilter("BGarden.API.Middleware.JwtTokenHandlerMiddleware", LogLevel.Error); // Только ошибки для jwt middleware
+            builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
+            builder.Logging.AddFilter("System", LogLevel.Warning);
+            builder.Logging.AddFilter("Default", LogLevel.Information);
+            builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Warning); // Снижаем уровень логирования для аутентификации
+            builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication.JwtBearer", LogLevel.Error); // Только ошибки для JWT
+            builder.Logging.AddFilter("System.Security.Claims", LogLevel.Error); // Снижаем уровень логирования для Claims
+            builder.Logging.AddFilter("System.IdentityModel.Tokens.Jwt", LogLevel.Error); // Снижаем уровень логирования для JWT
+            
+            // Дополнительно отключаем логирование для часто используемых контроллеров
+            builder.Logging.AddFilter("BGarden.API.Controllers.MapController", LogLevel.Warning);
+            builder.Logging.AddFilter("BGarden.API.Controllers.UserController", LogLevel.Warning);
+
             // Регистрируем адаптер для совместимости с Domain.Interfaces.IJwtService
             builder.Services.AddScoped<BGarden.Domain.Interfaces.IJwtService, JwtServiceAdapter>();
 
@@ -62,55 +79,105 @@ namespace API
                 {
                     OnMessageReceived = context =>
                     {
-                        Console.WriteLine($"Получен запрос с токеном: {context.Request.Headers["Authorization"]}");
+                        // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
+                        var path = context.Request.Path.Value?.ToLowerInvariant();
+                        if (path == null || 
+                            path.Contains("/maps/") || 
+                            path.Contains("/images/") || 
+                            Path.HasExtension(path) ||
+                            path == "/api/Map/active" ||
+                            path == "/api/Map" ||
+                            path == "/api/Map/all" ||
+                            path == "/api/User/me")
+                        {
+                            return Task.CompletedTask;
+                        }
+                        
+                        // Выводим лог только для остальных API запросов
+                        if (path.StartsWith("/api/"))
+                        {
+                            // Убираем вывод полного токена из соображений безопасности
+                            Console.WriteLine($"Получен запрос авторизации");
+                        }
                         return Task.CompletedTask;
                     },
                     OnTokenValidated = context =>
                     {
-                        Console.WriteLine("JWT токен успешно валидирован");
-                        var token = context.SecurityToken as JwtSecurityToken;
-                        if (token != null)
+                        // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
+                        var path = context.Request.Path.Value?.ToLowerInvariant();
+                        if (path == null || 
+                            path.Contains("/maps/") || 
+                            path.Contains("/images/") || 
+                            Path.HasExtension(path) ||
+                            path == "/api/Map/active" ||
+                            path == "/api/Map" ||
+                            path == "/api/Map/all" ||
+                            path == "/api/User/me")
                         {
-                            Console.WriteLine($"Алгоритм: {token.Header.Alg}, KeyId: {token.Header.Kid}");
-                            Console.WriteLine($"Издатель: {token.Issuer}, Аудитория: {token.Audiences.FirstOrDefault()}");
+                            return Task.CompletedTask;
+                        }
+                        
+                        // Вместо вывода полной информации о токене только сообщаем об успешной валидации
+                        if (path.StartsWith("/api/"))
+                        {
+                            // Убираем детальное логирование токена и claims
+                            Console.WriteLine("Аутентификация пройдена");
                         }
                         return Task.CompletedTask;
                     },
                     OnAuthenticationFailed = context =>
                     {
-                        Console.WriteLine($"Ошибка аутентификации: {context.Exception.Message}");
-                        Console.WriteLine($"Ошибка аутентификации (детали): {context.Exception}");
-                        if (context.Exception.InnerException != null)
+                        // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
+                        var path = context.Request.Path.Value?.ToLowerInvariant();
+                        if (path == null || 
+                            path.Contains("/maps/") || 
+                            path.Contains("/images/") || 
+                            Path.HasExtension(path) ||
+                            path == "/api/Map/active" ||
+                            path == "/api/Map" ||
+                            path == "/api/Map/all" ||
+                            path == "/api/User/me")
                         {
-                            Console.WriteLine($"Внутренняя ошибка: {context.Exception.InnerException.Message}");
+                            return Task.CompletedTask;
                         }
                         
-                        // Анализируем токен, который не прошел валидацию
-                        var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                        if (!string.IsNullOrEmpty(token))
+                        // Выводим лог только для остальных API запросов
+                        if (path.StartsWith("/api/"))
                         {
-                            try 
+                            Console.WriteLine($"Ошибка аутентификации: {context.Exception.Message}");
+                            // Выводим уточненную причину ошибки
+                            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
                             {
-                                var parts = token.Split('.');
-                                if (parts.Length >= 2)
-                                {
-                                    var headerBase64 = parts[0];
-                                    var headerBytes = Convert.FromBase64String(headerBase64.PadRight(headerBase64.Length + (4 - headerBase64.Length % 4) % 4, '='));
-                                    var headerJson = Encoding.UTF8.GetString(headerBytes);
-                                    Console.WriteLine($"Заголовок невалидного токена: {headerJson}");
-                                }
+                                Console.WriteLine("Токен истек");
                             }
-                            catch (Exception ex)
+                            else if (context.Exception.GetType() == typeof(SecurityTokenValidationException))
                             {
-                                Console.WriteLine($"Ошибка при анализе токена: {ex.Message}");
+                                Console.WriteLine("Токен не прошел валидацию");
                             }
                         }
-                        
                         return Task.CompletedTask;
                     },
                     OnChallenge = context =>
                     {
-                        Console.WriteLine($"Вызов Challenge. Аутентификация не прошла: {context.Error}, {context.ErrorDescription}");
+                        // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
+                        var path = context.Request.Path.Value?.ToLowerInvariant();
+                        if (path == null || 
+                            path.Contains("/maps/") || 
+                            path.Contains("/images/") || 
+                            Path.HasExtension(path) ||
+                            path == "/api/Map/active" ||
+                            path == "/api/Map" ||
+                            path == "/api/Map/all" ||
+                            path == "/api/User/me")
+                        {
+                            return Task.CompletedTask;
+                        }
+                        
+                        // Выводим лог только для остальных API запросов
+                        if (path.StartsWith("/api/"))
+                        {
+                            Console.WriteLine($"Вызов Challenge. Аутентификация не прошла: {context.Error}, {context.ErrorDescription}");
+                        }
                         return Task.CompletedTask;
                     }
                 };
