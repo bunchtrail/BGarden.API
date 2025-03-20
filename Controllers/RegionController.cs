@@ -78,5 +78,42 @@ namespace API.Controllers
 
             return NoContent();
         }
+
+        // PUT: api/Region/{id}/increment-specimens
+        [HttpPut("{id}/increment-specimens")]
+        public async Task<IActionResult> IncrementSpecimensCount(int id)
+        {
+            try
+            {
+                if (!await _regionService.UpdateSpecimensCountAsync(id, true))
+                    return NotFound();
+                    
+                return NoContent();
+            }
+            catch (Exception error)
+            {
+                // Можно использовать логирование через встроенные средства или другой подход
+                // logger.LogError("Ошибка при увеличении количества образцов в области:", error);
+                return StatusCode(500, "Ошибка сервера при обновлении количества образцов.");
+            }
+        }
+
+        // PUT: api/Region/{id}/decrement-specimens
+        [HttpPut("{id}/decrement-specimens")]
+        public async Task<IActionResult> DecrementSpecimensCount(int id)
+        {
+            try
+            {
+                if (!await _regionService.UpdateSpecimensCountAsync(id, false))
+                    return NotFound();
+                    
+                return NoContent();
+            }
+            catch (Exception error)
+            {
+                // logger.LogError("Ошибка при уменьшении количества образцов в области:", error);
+                return StatusCode(500, "Ошибка сервера при обновлении количества образцов.");
+            }
+        }
     }
 } 
