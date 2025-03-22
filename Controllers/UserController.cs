@@ -1,10 +1,13 @@
 using BGarden.Application.DTO;
 using BGarden.Application.Interfaces;
+using BGarden.Application.UseCases.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Security.Claims;
 
 namespace BGarden.API.Controllers
 {
@@ -13,10 +16,13 @@ namespace BGarden.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IAuthUseCase _authUseCase;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, 
+                             IAuthUseCase authUseCase)
         {
             _userService = userService;
+            _authUseCase = authUseCase;
         }
 
         // GET: api/User
@@ -34,24 +40,7 @@ namespace BGarden.API.Controllers
             try
             {
                 var username = User.Identity?.Name;
-                // Убираем избыточные логи
-                // Console.WriteLine($"User.Identity.Name: {username}");
-                // Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
-                // Console.WriteLine($"AuthenticationType: {User.Identity?.AuthenticationType}");
-
-                // Проверим все клеймы в токене - убираем логирование всех клеймов
-                // if (User.Claims.Any())
-                // {
-                //     Console.WriteLine("Доступные claims в токене:");
-                //     foreach (var claim in User.Claims)
-                //     {
-                //         Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
-                //     }
-                // }
-                // else
-                // {
-                //     Console.WriteLine("Клеймы отсутствуют в токене");
-                // }
+                
 
                 // Находим claim с именем
                 var nameClaim = User.Claims.FirstOrDefault(c => c.Type == "name");
@@ -153,16 +142,125 @@ namespace BGarden.API.Controllers
 
         // POST: api/User/login
         [HttpPost("login")]
-        public async Task<ActionResult<UserDto>> Login([FromBody] LoginDto loginDto)
+        public async Task<ActionResult<TokenDto>> Login([FromBody] LoginDto loginDto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var user = await _userService.AuthenticateAsync(loginDto);
-            if (user == null)
-                return Unauthorized();
-
-            return Ok(user);
+            try
+            {
+                // Получаем IP-адрес клиента
+                var ipAddress = GetIpAddress();
+                
+                // Обогащаем DTO данными из запроса
+                loginDto.IpAddress = ipAddress;
+                loginDto.UserAgent = Request.Headers["User-Agent"].ToString();
+                
+                var result = await _authUseCase.LoginAsync(loginDto);
+                
+                if (result == null)
+                {
+                    // Если результат null, это означает, что требуется двухфакторная аутентификация
+                    return Ok(new { requiresTwoFactor = true, username = loginDto.Username });
+                }
+                
+                // Установка refresh token в куки
+                SetRefreshTokenCookie(result.RefreshToken);
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при авторизации пользователя: {ex.Message}");
+                return BadRequest(new { message = "Ошибка авторизации" });
+            }
         }
+
+        // НОВЫЙ МЕТОД: Проверка валидности токена
+        [HttpGet("validate")]
+        public ActionResult<TokenValidationResponse> ValidateToken()
+        {
+            try
+            {
+                // Проверяем, авторизован ли пользователь
+                if (!User.Identity.IsAuthenticated)
+                {
+                    return Ok(new TokenValidationResponse { Valid = false });
+                }
+
+                // Получаем ID пользователя из токена
+                var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+                int userId = 0;
+                
+                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out userId))
+                {
+                    return Ok(new TokenValidationResponse { Valid = true, UserId = userId });
+                }
+                
+                return Ok(new TokenValidationResponse { Valid = true });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при проверке токена: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // НОВЫЙ МЕТОД: Обновление токена
+        [HttpPost("refresh")]
+        public async Task<ActionResult<TokenDto>> RefreshToken()
+        {
+            try
+            {
+                var refreshToken = Request.Cookies["refreshToken"];
+                var ipAddress = GetIpAddress();
+                
+                if (string.IsNullOrEmpty(refreshToken))
+                {
+                    return BadRequest(new { message = "Refresh token отсутствует" });
+                }
+                
+                var result = await _authUseCase.RefreshTokenAsync(refreshToken, ipAddress);
+                
+                // Устанавливаем новый refresh token в куки
+                SetRefreshTokenCookie(result.RefreshToken);
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при обновлении токена: {ex.Message}");
+                return BadRequest(new { message = "Невозможно обновить токен доступа" });
+            }
+        }
+
+        // Вспомогательные методы для работы с IP-адресом и куки
+        private string GetIpAddress()
+        {
+            if (Request.Headers.ContainsKey("X-Forwarded-For"))
+                return Request.Headers["X-Forwarded-For"];
+                
+            return HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "127.0.0.1";
+        }
+        
+        private void SetRefreshTokenCookie(string token)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Expires = DateTime.UtcNow.AddDays(7),
+                SameSite = SameSiteMode.Strict,
+                Secure = true
+            };
+            
+            Response.Cookies.Append("refreshToken", token, cookieOptions);
+        }
+    }
+    
+    // Класс для ответа при проверке валидности токена
+    public class TokenValidationResponse
+    {
+        public bool Valid { get; set; }
+        public int? UserId { get; set; }
     }
 } 

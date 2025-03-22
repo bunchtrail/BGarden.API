@@ -16,6 +16,8 @@ using BGarden.API.Services;
 using BGarden.API.Interfaces;
 using BGarden.API.Adapters;
 using BGarden.Application;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using System.Net;
 
 namespace API
 {
@@ -25,6 +27,13 @@ namespace API
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Настройка Kestrel для прослушивания всех IP-адресов
+            builder.WebHost.ConfigureKestrel(serverOptions =>
+            {
+                // Используем порт 7254 (из существующей конфигурации) и прослушиваем на всех IP-адресах
+                serverOptions.Listen(IPAddress.Any, 7254);
+            });
+
             // Подключаем конфигурацию из appsettings.json
             var configuration = builder.Configuration;
 
@@ -33,10 +42,10 @@ namespace API
 
             // Затем регистрируем application слой
             builder.Services.AddApplication();
-            
+
             // Регистрируем собственный JwtService из API.Interfaces
             builder.Services.AddScoped<BGarden.API.Interfaces.IJwtService, JwtService>();
-            
+
             // Добавляем настройки логирования
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
@@ -49,7 +58,7 @@ namespace API
             builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication.JwtBearer", LogLevel.Error); // Только ошибки для JWT
             builder.Logging.AddFilter("System.Security.Claims", LogLevel.Error); // Снижаем уровень логирования для Claims
             builder.Logging.AddFilter("System.IdentityModel.Tokens.Jwt", LogLevel.Error); // Снижаем уровень логирования для JWT
-            
+
             // Дополнительно отключаем логирование для часто используемых контроллеров
             builder.Logging.AddFilter("BGarden.API.Controllers.MapController", LogLevel.Warning);
             builder.Logging.AddFilter("BGarden.API.Controllers.UserController", LogLevel.Warning);
@@ -81,9 +90,9 @@ namespace API
                     {
                         // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
                         var path = context.Request.Path.Value?.ToLowerInvariant();
-                        if (path == null || 
-                            path.Contains("/maps/") || 
-                            path.Contains("/images/") || 
+                        if (path == null ||
+                            path.Contains("/maps/") ||
+                            path.Contains("/images/") ||
                             Path.HasExtension(path) ||
                             path == "/api/Map/active" ||
                             path == "/api/Map" ||
@@ -92,7 +101,7 @@ namespace API
                         {
                             return Task.CompletedTask;
                         }
-                        
+
                         // Выводим лог только для остальных API запросов
                         if (path.StartsWith("/api/"))
                         {
@@ -105,9 +114,9 @@ namespace API
                     {
                         // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
                         var path = context.Request.Path.Value?.ToLowerInvariant();
-                        if (path == null || 
-                            path.Contains("/maps/") || 
-                            path.Contains("/images/") || 
+                        if (path == null ||
+                            path.Contains("/maps/") ||
+                            path.Contains("/images/") ||
                             Path.HasExtension(path) ||
                             path == "/api/Map/active" ||
                             path == "/api/Map" ||
@@ -116,7 +125,7 @@ namespace API
                         {
                             return Task.CompletedTask;
                         }
-                        
+
                         // Вместо вывода полной информации о токене только сообщаем об успешной валидации
                         if (path.StartsWith("/api/"))
                         {
@@ -129,9 +138,9 @@ namespace API
                     {
                         // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
                         var path = context.Request.Path.Value?.ToLowerInvariant();
-                        if (path == null || 
-                            path.Contains("/maps/") || 
-                            path.Contains("/images/") || 
+                        if (path == null ||
+                            path.Contains("/maps/") ||
+                            path.Contains("/images/") ||
                             Path.HasExtension(path) ||
                             path == "/api/Map/active" ||
                             path == "/api/Map" ||
@@ -140,7 +149,7 @@ namespace API
                         {
                             return Task.CompletedTask;
                         }
-                        
+
                         // Выводим лог только для остальных API запросов
                         if (path.StartsWith("/api/"))
                         {
@@ -161,9 +170,9 @@ namespace API
                     {
                         // Исключаем статические файлы и часто запрашиваемые ресурсы из логирования
                         var path = context.Request.Path.Value?.ToLowerInvariant();
-                        if (path == null || 
-                            path.Contains("/maps/") || 
-                            path.Contains("/images/") || 
+                        if (path == null ||
+                            path.Contains("/maps/") ||
+                            path.Contains("/images/") ||
                             Path.HasExtension(path) ||
                             path == "/api/Map/active" ||
                             path == "/api/Map" ||
@@ -172,7 +181,7 @@ namespace API
                         {
                             return Task.CompletedTask;
                         }
-                        
+
                         // Выводим лог только для остальных API запросов
                         if (path.StartsWith("/api/"))
                         {
@@ -243,24 +252,19 @@ namespace API
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowSpecificOrigins",
-                    builder =>
-                    {
-                        builder.WithOrigins(
-                                "http://localhost:5173",  // Существующий URL
-                                "http://localhost:3000",  // URL вашего фронтенда
-                                "http://localhost:3001",  // Дополнительный URL для разработки
-                                "http://127.0.0.1:3000",  // localhost и 127.0.0.1 обрабатываются как разные домены
-                                "http://127.0.0.1:3001"
-                            )
-                            .AllowAnyMethod()
-                            .AllowAnyHeader()
-                            .AllowCredentials() // Важно для передачи куки
-                            .SetIsOriginAllowed(origin => true); // Разрешаем любые домены в режиме разработки
-                    });
+    builder =>
+    {
+        builder
+            .SetIsOriginAllowed(origin => true) // разрешает все источники
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+
             });
 
             var app = builder.Build();
-
+            app.UseCors();
             // Выводим информацию о конфигурации JWT для отладки
             Console.WriteLine("=== Конфигурация JWT ===");
             Console.WriteLine($"Issuer: {jwtSettings["Issuer"]}");
@@ -284,7 +288,7 @@ namespace API
             // Подключаем middleware безопасности
             app.UseSecurityHeaders();
             app.UseBruteForceProtection();
-            
+
             // Подключаем наш JwtTokenHandler middleware
             app.UseJwtTokenHandler();
 
