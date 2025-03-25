@@ -18,6 +18,13 @@ using BGarden.API.Adapters;
 using BGarden.Application;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Net;
+using BGarden.Application.Interfaces;
+using BGarden.Domain.Interfaces;
+using Application.Interfaces;
+using BGarden.Application.Services;
+using BGarden.Infrastructure.Services;
+using Application.Services;
+using BGarden.API.Exceptions;
 
 namespace API
 {
@@ -263,7 +270,24 @@ namespace API
 
             });
 
+            // Регистрация сервисов
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<ISpecimenService, SpecimenService>();
+            builder.Services.AddScoped<IFamilyService, FamilyService>();
+            builder.Services.AddScoped<IExpositionService, ExpositionService>();
+            builder.Services.AddScoped<IRegionService, RegionService>();
+            builder.Services.AddScoped<IPhenologyService, PhenologyService>();
+            builder.Services.AddScoped<IBiometryService, BiometryService>();
+            builder.Services.AddScoped<IMapService, MapService>();
+            builder.Services.AddScoped<ISpecimenImageService, SpecimenImageService>();
+
             var app = builder.Build();
+            
+            // Регистрация middleware обработки исключений
+            // ВАЖНО: Должен быть первым в цепочке middleware
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
+            
             app.UseCors();
             // Выводим информацию о конфигурации JWT для отладки
             Console.WriteLine("=== Конфигурация JWT ===");

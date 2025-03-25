@@ -17,7 +17,7 @@ x86/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
-
+docs/
 # Игнорирование файлов Visual Studio
 .vs/
 *.user
