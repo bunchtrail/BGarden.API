@@ -175,5 +175,92 @@ namespace API.Controllers
                 return StatusCode(500, $"Внутренняя ошибка сервера: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// Обновляет географические координаты образца
+        /// </summary>
+        /// <remarks>
+        /// Устаревший метод, рекомендуется использовать PUT /location с указанием типа координат
+        /// </remarks>
+        [HttpPut("{id}/geo-location")]
+        public async Task<ActionResult<SpecimenDto>> UpdateGeoLocation(int id, [FromBody] GeoLocationDto locationDto)
+        {
+            var result = await _specimenService.UpdateSpecimenLocationAsync(id, locationDto.Latitude, locationDto.Longitude);
+            
+            if (result == null)
+                return NotFound($"Образец с ID {id} не найден");
+                
+            return Ok(result);
+        }
+        
+        /// <summary>
+        /// Обновляет местоположение образца с учетом типа координат
+        /// </summary>
+        [HttpPut("{id}/location")]
+        public async Task<ActionResult<SpecimenDto>> UpdateLocation(int id, [FromBody] LocationUpdateDto locationDto)
+        {
+            // Создаем DTO с минимальным набором свойств для обновления местоположения
+            var updateDto = new SpecimenDto
+            {
+                LocationType = locationDto.LocationType,
+                Latitude = locationDto.Latitude,
+                Longitude = locationDto.Longitude,
+                MapId = locationDto.MapId,
+                MapX = locationDto.MapX,
+                MapY = locationDto.MapY
+            };
+            
+            var result = await _specimenService.UpdateSpecimenLocationAsync(id, updateDto);
+            
+            if (result == null)
+                return NotFound($"Образец с ID {id} не найден");
+                
+            return Ok(result);
+        }
+    }
+    
+    /// <summary>
+    /// DTO для обновления географических координат (устаревший метод)
+    /// </summary>
+    public class GeoLocationDto
+    {
+        public decimal Latitude { get; set; }
+        public decimal Longitude { get; set; }
+    }
+    
+    /// <summary>
+    /// DTO для обновления местоположения с учетом типа координат
+    /// </summary>
+    public class LocationUpdateDto
+    {
+        /// <summary>
+        /// Тип используемых координат
+        /// </summary>
+        public BGarden.Domain.Enums.LocationType LocationType { get; set; }
+        
+        /// <summary>
+        /// Географическая широта (для LocationType.Geographic)
+        /// </summary>
+        public decimal? Latitude { get; set; }
+        
+        /// <summary>
+        /// Географическая долгота (для LocationType.Geographic)
+        /// </summary>
+        public decimal? Longitude { get; set; }
+        
+        /// <summary>
+        /// Идентификатор карты (для LocationType.SchematicMap)
+        /// </summary>
+        public int? MapId { get; set; }
+        
+        /// <summary>
+        /// Координата X на карте (для LocationType.SchematicMap)
+        /// </summary>
+        public decimal? MapX { get; set; }
+        
+        /// <summary>
+        /// Координата Y на карте (для LocationType.SchematicMap)
+        /// </summary>
+        public decimal? MapY { get; set; }
     }
 }
