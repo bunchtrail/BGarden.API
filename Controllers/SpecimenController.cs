@@ -5,6 +5,11 @@ using BGarden.Domain.Enums;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using Application.UseCases;
+using Microsoft.AspNetCore.Http;
+using System.IO;
+using System;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace API.Controllers
 {
@@ -109,6 +114,66 @@ namespace API.Controllers
                 return NotFound();
 
             return NoContent();
+        }
+
+        // POST: api/Specimen/with-images
+        [HttpPost("with-images")]
+        [RequestSizeLimit(50 * 1024 * 1024)] // Ограничение размера запроса в 50 МБ
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)] // Ограничение размера формы в 50 МБ
+        public async Task<ActionResult<SpecimenDto>> CreateWithImages(
+            [FromForm] SpecimenDto dto,
+            [FromForm] IFormFileCollection images)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                if (images == null || images.Count == 0)
+                    return BadRequest("Необходимо загрузить хотя бы одно изображение");
+
+                // Создаем список DTO изображений
+                var imageDtos = new List<CreateSpecimenImageBinaryDto>();
+
+                foreach (var image in images)
+                {
+                    if (image.Length == 0)
+                        continue;
+
+                    // Читаем бинарные данные из файла
+                    using var memoryStream = new MemoryStream();
+                    await image.CopyToAsync(memoryStream);
+
+                    // Создаем DTO для изображения
+                    var imageDto = new CreateSpecimenImageBinaryDto
+                    {
+                        ImageData = memoryStream.ToArray(),
+                        ContentType = image.ContentType,
+                        Description = image.FileName,
+                        IsMain = imageDtos.Count == 0 // Первое изображение считаем основным
+                    };
+
+                    imageDtos.Add(imageDto);
+                }
+
+                // Получаем UseCase из DI
+                var createSpecimenWithImagesUseCase = HttpContext.RequestServices
+                    .GetRequiredService<CreateSpecimenWithImagesUseCase>();
+
+                // Выполняем UseCase
+                var (createdSpecimen, imageIds) = await createSpecimenWithImagesUseCase
+                    .ExecuteAsync(dto, imageDtos);
+
+                // Возвращаем результат
+                return CreatedAtAction(
+                    nameof(GetById),
+                    new { id = createdSpecimen.Id },
+                    new { specimen = createdSpecimen, imageIds });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Внутренняя ошибка сервера: {ex.Message}");
+            }
         }
     }
 }

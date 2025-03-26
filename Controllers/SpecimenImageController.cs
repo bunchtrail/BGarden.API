@@ -1,8 +1,11 @@
 using Application.DTO;
+using Application.DTO.Exceptions;
 using Application.Interfaces;
 using BGarden.API.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.IO;
+using ResourceNotFoundException = BGarden.API.Exceptions.ResourceNotFoundException;
 
 namespace BGarden.API.Controllers
 {
@@ -149,6 +152,99 @@ namespace BGarden.API.Controllers
                 throw new ResourceNotFoundException($"Изображение с ID {id} не найдено");
             }
             return NoContent();
+        }
+
+        /// <summary>
+        /// Загрузить набор изображений для образца растения
+        /// </summary>
+        /// <param name="dto">DTO массовой загрузки</param>
+        [HttpPost("batch-upload")]
+        [Authorize]
+        [RequestSizeLimit(52428800)] // 50MB
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<BatchSpecimenImageResultDto>> UploadBatch([FromForm] BatchImageUploadDto dto)
+        {
+            if (dto.Files == null || !dto.Files.Any())
+            {
+                return BadRequest(new { error = "Не предоставлены файлы для загрузки" });
+            }
+
+            var result = new BatchSpecimenImageResultDto
+            {
+                SpecimenId = dto.SpecimenId,
+                SuccessCount = 0,
+                ErrorCount = 0,
+                UploadedImageIds = new List<int>(),
+                ErrorMessages = new List<string>()
+            };
+
+            try
+            {
+                var binaryDtos = new List<CreateSpecimenImageBinaryDto>();
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var maxFileSize = 10 * 1024 * 1024; // 10MB
+
+                foreach (var file in dto.Files)
+                {
+                    try
+                    {
+                        // Проверка размера файла
+                        if (file.Length > maxFileSize)
+                        {
+                            throw new FileValidationException(file.FileName, $"Превышен размер файла (макс. {maxFileSize / 1024 / 1024}MB)");
+                        }
+
+                        // Проверка расширения файла
+                        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                        if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+                        {
+                            throw new FileValidationException(file.FileName, $"Недопустимое расширение файла. Разрешены: {string.Join(", ", allowedExtensions)}");
+                        }
+
+                        // Преобразование в DTO с бинарными данными
+                        using var memoryStream = new MemoryStream();
+                        await file.CopyToAsync(memoryStream);
+
+                        binaryDtos.Add(new CreateSpecimenImageBinaryDto
+                        {
+                            SpecimenId = dto.SpecimenId,
+                            ImageData = memoryStream.ToArray(),
+                            ContentType = file.ContentType,
+                            Description = $"Загружено {DateTime.UtcNow}",
+                            IsMain = dto.IsMain && binaryDtos.Count == 0 // Только первый файл может быть основным, если IsMain == true
+                        });
+                    }
+                    catch (FileValidationException ex)
+                    {
+                        result.ErrorCount++;
+                        result.ErrorMessages.Add(ex.Message);
+                        _logger.LogWarning(ex, "Ошибка валидации файла '{FileName}'", file.FileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.ErrorCount++;
+                        result.ErrorMessages.Add($"Ошибка при обработке файла '{file.FileName}': {ex.Message}");
+                        _logger.LogError(ex, "Ошибка при обработке файла '{FileName}'", file.FileName);
+                    }
+                }
+
+                if (binaryDtos.Any())
+                {
+                    var uploadedImages = await _specimenImageService.AddMultipleAsync(binaryDtos);
+                    result.SuccessCount = uploadedImages.Count();
+                    result.UploadedImageIds = uploadedImages.Select(img => img.Id).ToList();
+                }
+                
+                return Created($"api/v1/specimen-images/by-specimen/{dto.SpecimenId}", result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при массовой загрузке изображений для образца с ID {SpecimenId}", dto.SpecimenId);
+                return StatusCode(500, new { error = "Внутренняя ошибка сервера при загрузке изображений" });
+            }
         }
     }
 } 

@@ -282,6 +282,9 @@ namespace API
             builder.Services.AddScoped<IMapService, MapService>();
             builder.Services.AddScoped<ISpecimenImageService, SpecimenImageService>();
 
+            // Регистрация Use Cases
+            builder.Services.AddScoped<Application.UseCases.CreateSpecimenWithImagesUseCase>();
+
             var app = builder.Build();
             
             // Регистрация middleware обработки исключений
