@@ -126,13 +126,35 @@ namespace BGarden.API.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult> Delete(int id)
         {
+            // Получаем изображение для удаления
+            var imageToDelete = await _specimenImageService.GetByIdAsync(id);
+            if (imageToDelete == null)
+            {
+                throw new ResourceNotFoundException($"Изображение с ID {id} не найдено");
+            }
+
+            // Удаляем изображение
             var result = await _specimenImageService.DeleteAsync(id);
             if (!result)
             {
                 throw new ResourceNotFoundException($"Изображение с ID {id} не найдено");
             }
+
+            // Если удалённое изображение было основным, пытаемся установить новое
+            if (imageToDelete.IsMain)
+            {
+                var remainingImages = await _specimenImageService.GetBySpecimenIdAsync(imageToDelete.SpecimenId, includeImageData: false);
+                var newMainImage = remainingImages.FirstOrDefault();
+                if (newMainImage != null)
+                {
+                    // Устанавливаем выбранное изображение как основное
+                    await _specimenImageService.SetAsMainAsync(newMainImage.Id);
+                }
+            }
+
             return NoContent();
         }
+
 
         /// <summary>
         /// Установить указанное изображение как основное для образца
