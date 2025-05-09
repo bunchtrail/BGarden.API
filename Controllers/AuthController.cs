@@ -59,24 +59,19 @@ namespace BGarden.API.Controllers
         {
             try
             {
-                // Получаем IP-адрес клиента
                 var ipAddress = GetIpAddress();
-                
-                // Обогащаем DTO данными из запроса
                 loginDto.IpAddress = ipAddress;
                 loginDto.UserAgent = Request.Headers["User-Agent"].ToString();
-                
+
                 var result = await _authUseCase.LoginAsync(loginDto);
-                
+
                 if (result == null)
                 {
-                    // Если результат null, это означает, что требуется двухфакторная аутентификация
-                    return Ok(new { requiresTwoFactor = true, username = loginDto.Username });
+                    // 🔴 Логин/пароль неверны → 401
+                    return Unauthorized(new { message = "Неверное имя пользователя или пароль" });
                 }
-                
-                // Установка refresh token в куки
+
                 SetRefreshTokenCookie(result.RefreshToken);
-                
                 return Ok(result);
             }
             catch (Exception ex)
@@ -85,7 +80,6 @@ namespace BGarden.API.Controllers
                 return BadRequest(new { message = "Ошибка авторизации" });
             }
         }
-
         /// <summary>
         /// Обновление токена доступа
         /// </summary>

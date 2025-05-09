@@ -10,6 +10,9 @@ using Microsoft.AspNetCore.Http;
 using System.IO;
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
+using BGarden.Domain.Interfaces;
 
 namespace API.Controllers
 {
@@ -18,10 +21,20 @@ namespace API.Controllers
     public class SpecimenController : ControllerBase
     {
         private readonly ISpecimenService _specimenService;
+        private readonly CreateSpecimenWithImagesUseCase _createSpecimenWithImagesUseCase;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<SpecimenController> _logger;
 
-        public SpecimenController(ISpecimenService specimenService)
+        public SpecimenController(
+            ISpecimenService specimenService,
+            CreateSpecimenWithImagesUseCase createSpecimenWithImagesUseCase,
+            IUnitOfWork unitOfWork,
+            ILogger<SpecimenController> logger)
         {
-            _specimenService = specimenService;
+            _specimenService = specimenService ?? throw new ArgumentNullException(nameof(specimenService));
+            _createSpecimenWithImagesUseCase = createSpecimenWithImagesUseCase ?? throw new ArgumentNullException(nameof(createSpecimenWithImagesUseCase));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         // GET: api/Specimen/sector/{sectorType}
@@ -78,49 +91,80 @@ namespace API.Controllers
 
         // POST: api/Specimen
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<SpecimenDto>> Create([FromBody] SpecimenDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var created = await _specimenService.CreateSpecimenAsync(dto);
-            // Возвращаем 201 Created с данными созданного образца
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            try
+            {
+                var createdSpecimen = await _specimenService.CreateSpecimenAsync(dto);
+                await _unitOfWork.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetById), new { id = createdSpecimen.Id }, createdSpecimen);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating specimen");
+                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
+            }
         }
 
         // PUT: api/Specimen/{id}
         [HttpPut("{id}")]
-        public async Task<ActionResult<SpecimenDto>> Update(int id, [FromBody] SpecimenDto dto)
+        [Authorize]
+        public async Task<IActionResult> Update(int id, [FromBody] SpecimenDto dto)
         {
             if (id != dto.Id)
-                return BadRequest("Id в URL не соответствует Id в теле запроса");
+                return BadRequest("ID mismatch");
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var updated = await _specimenService.UpdateSpecimenAsync(id, dto);
-            if (updated == null)
-                return NotFound();
-
-            return Ok(updated);
+            try
+            {
+                var updatedSpecimen = await _specimenService.UpdateSpecimenAsync(id, dto);
+                if (updatedSpecimen == null)
+                    return NotFound();
+                
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(updatedSpecimen);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating specimen with id {id}");
+                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
+            }
         }
 
         // DELETE: api/Specimen/{id}
         [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(int id)
+        [Authorize]
+        public async Task<IActionResult> Delete(int id)
         {
             var result = await _specimenService.DeleteSpecimenAsync(id);
             if (!result)
                 return NotFound();
 
+            await _unitOfWork.SaveChangesAsync();
             return NoContent();
         }
 
         // POST: api/Specimen/with-images
         [HttpPost("with-images")]
-        [RequestSizeLimit(50 * 1024 * 1024)] // Ограничение размера запроса в 50 МБ
-        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)] // Ограничение размера формы в 50 МБ
-        public async Task<ActionResult<SpecimenDto>> CreateWithImages(
+        [Authorize]
+        [RequestSizeLimit(50 * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50 * 1024 * 1024)]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<object>> CreateWithImages(
             [FromForm] SpecimenDto dto,
             [FromForm] IFormFileCollection images)
         {
@@ -129,50 +173,28 @@ namespace API.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
-                if (images == null || images.Count == 0)
-                    return BadRequest("Необходимо загрузить хотя бы одно изображение");
+                if (images == null || !images.Any())
+                    return BadRequest(new { message = "Необходимо загрузить хотя бы одно изображение" });
 
-                // Создаем список DTO изображений
-                var imageDtos = new List<CreateSpecimenImageBinaryDto>();
+                var (createdSpecimen, imageIds) = await _createSpecimenWithImagesUseCase.ExecuteAsync(dto, images.ToList());
 
-                foreach (var image in images)
-                {
-                    if (image.Length == 0)
-                        continue;
-
-                    // Читаем бинарные данные из файла
-                    using var memoryStream = new MemoryStream();
-                    await image.CopyToAsync(memoryStream);
-
-                    // Создаем DTO для изображения
-                    var imageDto = new CreateSpecimenImageBinaryDto
-                    {
-                        ImageData = memoryStream.ToArray(),
-                        ContentType = image.ContentType,
-                        Description = image.FileName,
-                        IsMain = imageDtos.Count == 0 // Первое изображение считаем основным
-                    };
-
-                    imageDtos.Add(imageDto);
-                }
-
-                // Получаем UseCase из DI
-                var createSpecimenWithImagesUseCase = HttpContext.RequestServices
-                    .GetRequiredService<CreateSpecimenWithImagesUseCase>();
-
-                // Выполняем UseCase
-                var (createdSpecimen, imageIds) = await createSpecimenWithImagesUseCase
-                    .ExecuteAsync(dto, imageDtos);
-
-                // Возвращаем результат
                 return CreatedAtAction(
                     nameof(GetById),
                     new { id = createdSpecimen.Id },
-                    new { specimen = createdSpecimen, imageIds });
+                    new { specimen = createdSpecimen, imageIds = imageIds });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (IOException ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = $"Ошибка при работе с файлами: {ex.Message}" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Внутренняя ошибка сервера: {ex.Message}");
+                _logger.LogError(ex, "Error creating specimen with images.");
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = $"Внутренняя ошибка сервера: {ex.Message}" });
             }
         }
 

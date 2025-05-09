@@ -50,6 +50,9 @@ namespace API
             // Затем регистрируем application слой
             builder.Services.AddApplication();
 
+            // Register IHttpContextAccessor to allow access to HttpContext in services
+            builder.Services.AddHttpContextAccessor();
+
             // Регистрируем собственный JwtService из API.Interfaces
             builder.Services.AddScoped<BGarden.API.Interfaces.IJwtService, JwtService>();
 
